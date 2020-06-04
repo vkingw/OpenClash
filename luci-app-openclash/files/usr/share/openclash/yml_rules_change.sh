@@ -1,8 +1,63 @@
 #!/bin/sh
 
-check_def=0	
+check_def=0
+/usr/share/openclash/yml_groups_name_get.sh
+
 if [ "$2" != 0 ]; then
-   if [ "$(uci get openclash.config.Proxy)" = "读取错误，配置文件异常！" ]; then
+   #判断策略组是否存在
+   GlobalTV=$(uci get openclash.config.GlobalTV 2>/dev/null)
+   AsianTV=$(uci get openclash.config.AsianTV 2>/dev/null)
+   Proxy=$(uci get openclash.config.Proxy 2>/dev/null)
+   Apple=$(uci get openclash.config.Apple 2>/dev/null)
+   Netflix=$(uci get openclash.config.Netflix 2>/dev/null)
+   Spotify=$(uci get openclash.config.Spotify 2>/dev/null)
+   Steam=$(uci get openclash.config.Steam 2>/dev/null)
+   AdBlock=$(uci get openclash.config.AdBlock 2>/dev/null)
+   Netease_Music=$(uci get openclash.config.Netease_Music 2>/dev/null)
+   Speedtest=$(uci get openclash.config.Speedtest 2>/dev/null)
+   Telegram=$(uci get openclash.config.Telegram 2>/dev/null)
+   Microsoft=$(uci get openclash.config.Microsoft 2>/dev/null)
+   PayPal=$(uci get openclash.config.PayPal 2>/dev/null)
+   Domestic=$(uci get openclash.config.Domestic 2>/dev/null)
+   Others=$(uci get openclash.config.Others 2>/dev/null)
+   if [ "$2" = "ConnersHua_return" ]; then
+	    if [ -z "$(grep "$Proxy" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Others" /tmp/Proxy_Group)" ];then
+         echo "${1} Warning: Because of The Different Porxy-Group's Name, Stop Setting The Other Rules!" >>/tmp/openclash.log
+         exit 0
+	    fi
+   elif [ "$2" = "ConnersHua" ]; then
+       if [ -z "$(grep "$GlobalTV" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$AsianTV" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Proxy" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Apple" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$AdBlock" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Others" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Domestic" /tmp/Proxy_Group)" ]; then
+         echo "${1} Warning: Because of The Different Porxy-Group's Name, Stop Setting The Other Rules!" >>/tmp/openclash.log
+         exit 0
+       fi
+   elif [ "$2" = "lhie1" ]; then
+       if [ -z "$(grep "$GlobalTV" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$AsianTV" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Proxy" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Apple" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Netflix" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Spotify" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Steam" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$AdBlock" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Netease_Music" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Speedtest" /tmp/Proxy_Group)" ]\
+   || [ -z "$(grep "$Telegram" /tmp/Proxy_Group)" ]\
+   || [ -z "$(grep "$Microsoft" /tmp/Proxy_Group)" ]\
+   || [ -z "$(grep "$PayPal" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Others" /tmp/Proxy_Group)" ]\
+	 || [ -z "$(grep "$Domestic" /tmp/Proxy_Group)" ]; then
+         echo "${1} Warning: Because of The Different Porxy-Group's Name, Stop Setting The Other Rules!" >>/tmp/openclash.log
+         exit 0
+       fi
+   fi
+   if [ "$Proxy" = "读取错误，配置文件异常！" ]; then
       echo "${1} Warning: Can not Get The Porxy-Group's Name, Stop Setting The Other Rules!" >>/tmp/openclash.log
       exit 0
    else
@@ -20,124 +75,153 @@ if [ "$2" != 0 ]; then
     }
 
     [ "$check_def" -ne 1 ] && {
-    GlobalTV=$(grep '##GlobalTV:' "$4" |awk -F ':' '{print $2}')
-    AsianTV=$(grep '##AsianTV:' "$4" |awk -F ':' '{print $2}')
-    Proxy=$(grep '##Proxy:' "$4" |awk -F ':' '{print $2}')
-    Apple=$(grep '##Apple:' "$4" |awk -F ':' '{print $2}')
-    Netflix=$(grep '##Netflix:' "$4" |awk -F ':' '{print $2}')
-    Spotify=$(grep '##Spotify:' "$4" |awk -F ':' '{print $2}')
-    Steam=$(grep '##Steam:' "$4" |awk -F ':' '{print $2}')
-    AdBlock=$(grep '##AdBlock:' "$4" |awk -F ':' '{print $2}')
-    Others=$(grep '##Others:' "$4" |awk -F ':' '{print $2}')
-    Domestic=$(grep '##Domestic:' "$4" |awk -F ':' '{print $2}')
-    Netease_Music=$(grep '##Netease_Music:' "$4" |awk -F ':' '{print $2}')
-    Speedtest=$(grep '##Speedtest:' "$4" |awk -F ':' '{print $2}')
-    Telegram=$(grep '##Telegram:' "$4" |awk -F ':' '{print $2}')
-    PayPal=$(grep '##PayPal:' "$4" |awk -F ':' '{print $2}')
-    Microsoft=$(grep '##Microsoft:' "$4" |awk -F ':' '{print $2}')
+    GlobalTV_YAML=$(grep '##GlobalTV:' "$4" |awk -F ':' '{print $2}')
+    AsianTV_YAML=$(grep '##AsianTV:' "$4" |awk -F ':' '{print $2}')
+    Proxy_YAML=$(grep '##Proxy:' "$4" |awk -F ':' '{print $2}')
+    Apple_YAML=$(grep '##Apple:' "$4" |awk -F ':' '{print $2}')
+    Netflix_YAML=$(grep '##Netflix:' "$4" |awk -F ':' '{print $2}')
+    Spotify_YAML=$(grep '##Spotify:' "$4" |awk -F ':' '{print $2}')
+    Steam_YAML=$(grep '##Steam:' "$4" |awk -F ':' '{print $2}')
+    AdBlock_YAML=$(grep '##AdBlock:' "$4" |awk -F ':' '{print $2}')
+    Others_YAML=$(grep '##Others:' "$4" |awk -F ':' '{print $2}')
+    Domestic_YAML=$(grep '##Domestic:' "$4" |awk -F ':' '{print $2}')
+    Netease_Music_YAML=$(grep '##Netease_Music:' "$4" |awk -F ':' '{print $2}')
+    Speedtest_YAML=$(grep '##Speedtest:' "$4" |awk -F ':' '{print $2}')
+    Telegram_YAML=$(grep '##Telegram:' "$4" |awk -F ':' '{print $2}')
+    PayPal_YAML=$(grep '##PayPal:' "$4" |awk -F ':' '{print $2}')
+    Microsoft_YAML=$(grep '##Microsoft:' "$4" |awk -F ':' '{print $2}')
 
     if [ "$2" = "ConnersHua_return" ]; then
-	if [ "$(uci get openclash.config.Proxy)" != "$Proxy" ]\
-	 || [ "$(uci get openclash.config.Others)" != "$Others" ];then
+	     if [ "$Proxy" != "$Proxy_YAML" ]\
+	 || [ "$Others" != "$Others_YAML" ];then
          check_def=1
-	fi
+	     fi
     elif [ "$2" = "ConnersHua" ]; then
-       if [ "$(uci get openclash.config.GlobalTV)" != "$GlobalTV" ]\
-	 || [ "$(uci get openclash.config.AsianTV)" != "$AsianTV" ]\
-	 || [ "$(uci get openclash.config.Proxy)" != "$Proxy" ]\
-	 || [ "$(uci get openclash.config.Apple)" != "$Apple" ]\
-	 || [ "$(uci get openclash.config.AdBlock)" != "$AdBlock" ]\
-	 || [ "$(uci get openclash.config.Others)" != "$Others" ]\
-	 || [ "$(uci get openclash.config.Domestic)" != "$Domestic" ]; then
+       if [ "$GlobalTV" != "$GlobalTV_YAML" ]\
+	 || [ "$AsianTV" != "$AsianTV_YAML" ]\
+	 || [ "$Proxy" != "$Proxy_YAML" ]\
+	 || [ "$Apple" != "$Apple_YAML" ]\
+	 || [ "$AdBlock" != "$AdBlock_YAML" ]\
+	 || [ "$Others" != "$Others_YAML" ]\
+	 || [ "$Domestic" != "$Domestic_YAML" ]; then
          check_def=1
        fi
     elif [ "$2" = "lhie1" ]; then
-       if [ "$(uci get openclash.config.GlobalTV)" != "$GlobalTV" ]\
-	 || [ "$(uci get openclash.config.AsianTV)" != "$AsianTV" ]\
-	 || [ "$(uci get openclash.config.Proxy)" != "$Proxy" ]\
-	 || [ "$(uci get openclash.config.Apple)" != "$Apple" ]\
-	 || [ "$(uci get openclash.config.Netflix)" != "$Netflix" ]\
-	 || [ "$(uci get openclash.config.Spotify)" != "$Spotify" ]\
-	 || [ "$(uci get openclash.config.Steam)" != "$Steam" ]\
-	 || [ "$(uci get openclash.config.AdBlock)" != "$AdBlock" ]\
-	 || [ "$(uci get openclash.config.Netease_Music)" != "$Netease_Music" ]\
-	 || [ "$(uci get openclash.config.Speedtest)" != "$Speedtest" ]\
-   || [ "$(uci get openclash.config.Telegram)" != "$Telegram" ]\
-   || [ "$(uci get openclash.config.Microsoft)" != "$Microsoft" ]\
-   || [ "$(uci get openclash.config.PayPal)" != "$PayPal" ]\
-	 || [ "$(uci get openclash.config.Others)" != "$Others" ]\
-	 || [ "$(uci get openclash.config.Domestic)" != "$Domestic" ]; then
+       if [ "$GlobalTV" != "$GlobalTV_YAML" ]\
+	 || [ "$AsianTV" != "$AsianTV_YAML" ]\
+	 || [ "$Proxy" != "$Proxy_YAML" ]\
+	 || [ "$Apple" != "$Apple_YAML" ]\
+	 || [ "$Netflix" != "$Netflix_YAML" ]\
+	 || [ "$Spotify" != "$Spotify_YAML" ]\
+	 || [ "$Steam" != "$Steam_YAML" ]\
+	 || [ "$AdBlock" != "$AdBlock_YAML" ]\
+	 || [ "$Netease_Music" != "$Netease_Music_YAML" ]\
+	 || [ "$Speedtest" != "$Speedtest_YAML" ]\
+   || [ "$Telegram" != "$Telegram_YAML" ]\
+   || [ "$Microsoft" != "$Microsoft_YAML" ]\
+   || [ "$PayPal" != "$PayPal_YAML" ]\
+	 || [ "$Others" != "$Others_YAML" ]\
+	 || [ "$Domestic" != "$Domestic_YAML" ]; then
          check_def=1
        fi
     fi
     }
 
-       if [ "$check_def" -eq 1 ]; then
-       GlobalTV=$(uci get openclash.config.GlobalTV 2>/dev/null)
-       AsianTV=$(uci get openclash.config.AsianTV 2>/dev/null)
-       Proxy=$(uci get openclash.config.Proxy 2>/dev/null)
-       Apple=$(uci get openclash.config.Apple 2>/dev/null)
-       Netflix=$(uci get openclash.config.Netflix 2>/dev/null)
-       Spotify=$(uci get openclash.config.Spotify 2>/dev/null)
-       Steam=$(uci get openclash.config.Steam 2>/dev/null)
-       AdBlock=$(uci get openclash.config.AdBlock 2>/dev/null)
-       Netease_Music=$(uci get openclash.config.Netease_Music 2>/dev/null)
-       Speedtest=$(uci get openclash.config.Speedtest 2>/dev/null)
-       Telegram=$(uci get openclash.config.Telegram 2>/dev/null)
-       Microsoft=$(uci get openclash.config.Microsoft 2>/dev/null)
-       PayPal=$(uci get openclash.config.PayPal 2>/dev/null)
-       Domestic=$(uci get openclash.config.Domestic 2>/dev/null)
-       Others=$(uci get openclash.config.Others 2>/dev/null)
+    if [ "$check_def" -eq 1 ]; then
        if [ "$2" = "lhie1" ]; then
-            sed -i '/^Rule:/,$d' "$4"
+            sed -i '/^rules:/,$d' "$4"
             cat /etc/openclash/lhie1.yaml >> "$4"
-            sed -i -e "s/,GlobalTV$/,${GlobalTV}#d/g" -e "/Rule:/a\##GlobalTV:${GlobalTV}"\
-            -e "s/,AsianTV$/,${AsianTV}#d/g" -e "/Rule:/a\##AsianTV:${AsianTV}"\
-            -e "s/,Proxy$/,${Proxy}#d/g" -e "/Rule:/a\##Proxy:${Proxy}"\
-            -e "s/,Apple$/,${Apple}#d/g"\
-            -e "s/,Apple,no-resolve$/,${Apple},no-resolve#d/g" -e "/Rule:/a\##Apple:${Apple}"\
-            -e "s/,Netflix$/,${Netflix}#d/g" -e "/Rule:/a\##Netflix:${Netflix}"\
-            -e "s/,Spotify$/,${Spotify}#d/g" -e "/Rule:/a\##Spotify:${Spotify}"\
-            -e "s/,Steam$/,${Steam}#d/g" -e "/Rule:/a\##Steam:${Steam}"\
-            -e "s/,AdBlock$/,${AdBlock}#d/g" -e "/Rule:/a\##AdBlock:${AdBlock}"\
-            -e "s/,Netease Music$/,${Netease_Music}#d/g" -e "/Rule:/a\##Netease_Music:${Netease_Music}"\
-            -e "s/,Speedtest$/,${Speedtest}#d/g" -e "/Rule:/a\##Speedtest:${Speedtest}"\
-            -e "s/,Telegram$/,${Telegram}#d/g" -e "/Rule:/a\##Telegram:${Telegram}"\
-            -e "s/,Microsoft$/,${Microsoft}#d/g" -e "/Rule:/a\##Microsoft:${Microsoft}"\
-            -e "s/,PayPal$/,${PayPal}#d/g" -e "/Rule:/a\##PayPal:${PayPal}"\
-            -e "s/,Domestic$/,${Domestic}#d/g" -e "/Rule:/a\##Domestic:${Domestic}"\
-            -e "s/,Others$/,${Others}#d/g" -e "/Rule:/a\##Others:${Others}"\
-            -e "s/#d//g" "$4"
+            sed -i "s/,GlobalTV$/,${GlobalTV}#d/g" "$4" 2>/dev/null
+            sed -i "s/,GlobalTV,no-resolve$/,${GlobalTV},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##GlobalTV:${GlobalTV}" "$4" 2>/dev/null
+            sed -i "s/,AsianTV$/,${AsianTV}#d/g" "$4" 2>/dev/null
+            sed -i "s/,AsianTV,no-resolve$/,${AsianTV},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##AsianTV:${AsianTV}" "$4" 2>/dev/null
+            sed -i "s/,Proxy$/,${Proxy}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Proxy,no-resolve$/,${Proxy},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Proxy:${Proxy}" "$4" 2>/dev/null
+            sed -i "s/,Apple$/,${Apple}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Apple,no-resolve$/,${Apple},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Apple:${Apple}" "$4" 2>/dev/null
+            sed -i "s/,Netflix$/,${Netflix}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Netflix,no-resolve$/,${Netflix},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Netflix:${Netflix}" "$4" 2>/dev/null
+            sed -i "s/,Spotify$/,${Spotify}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Spotify,no-resolve$/,${Spotify},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Spotify:${Spotify}" "$4" 2>/dev/null
+            sed -i "s/,Steam$/,${Steam}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Steam,no-resolve$/,${Steam},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Steam:${Steam}" "$4" 2>/dev/null
+            sed -i "s/,AdBlock$/,${AdBlock}#d/g" "$4" 2>/dev/null
+            sed -i "s/,AdBlock,no-resolve$/,${AdBlock},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##AdBlock:${AdBlock}" "$4" 2>/dev/null
+            sed -i "s/,Netease Music$/,${Netease_Music}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Netease Music$/,${Netease_Music},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Netease_Music:${Netease_Music}" "$4" 2>/dev/null
+            sed -i "s/,Speedtest$/,${Speedtest}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Speedtest$/,${Speedtest},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Speedtest:${Speedtest}" "$4" 2>/dev/null
+            sed -i "s/,Telegram$/,${Telegram}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Telegram$/,${Telegram},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Telegram:${Telegram}" "$4" 2>/dev/null
+            sed -i "s/,Microsoft$/,${Microsoft}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Microsoft$/,${Microsoft},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Microsoft:${Microsoft}" "$4" 2>/dev/null
+            sed -i "s/,PayPal$/,${PayPal}#d/g" "$4" 2>/dev/null
+            sed -i "s/,PayPal$/,${PayPal},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##PayPal:${PayPal}" "$4" 2>/dev/null
+            sed -i "s/,Domestic$/,${Domestic}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Domestic$/,${Domestic},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Domestic:${Domestic}" "$4" 2>/dev/null
+            sed -i "s/,Others$/,${Others}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Others$/,${Others},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Others:${Others}" "$4" 2>/dev/null
+            sed -i "s/#d//g" "$4" 2>/dev/null
        elif [ "$2" = "ConnersHua" ]; then
-            sed -i '/^Rule:/,$d' "$4"
+            sed -i '/^rules:/,$d' "$4"
             cat /etc/openclash/ConnersHua.yaml >> "$4"
-            sed -i -e "s/,GlobalMedia$/,${GlobalTV}#d/g"\
-            -e "s/,GlobalMedia,no-resolve$/,${GlobalTV},no-resolve#d/g" -e "/Rule:/a\##GlobalTV:${GlobalTV}"\
-            -e "s/,HKMTMedia$/,${AsianTV}#d/g" -e "/Rule:/a\##AsianTV:${AsianTV}"\
-            -e "s/,PROXY$/,${Proxy}#d/g"\
-            -e "s/,PROXY,no-resolve$/,${Proxy},no-resolve#d/g" -e "/Rule:/a\##Proxy:${Proxy}"\
-            -e "s/,Apple$/,${Apple}#d/g" -e "/Rule:/a\##Apple:${Apple}"\
-            -e "s/,Hijacking,no-resolve$/,${AdBlock},no-resolve#d/g"\
-            -e "s/,Hijacking$/,${AdBlock}#d/g" -e "/Rule:/a\##AdBlock:${AdBlock}"\
-            -e "s/,DIRECT$/,${Domestic}#d/g" -e "/Rule:/a\##Domestic:${Domestic}"\
-            -e "s/,Final$/,${Others}#d/g" -e "/Rule:/a\##Others:${Others}"\
-            -e "s/#d//g" "$4"
+            sed -i "s/,GlobalMedia$/,${GlobalTV}#d/g" "$4" 2>/dev/null
+            sed -i "s/,GlobalMedia,no-resolve$/,${GlobalTV},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##GlobalTV:${GlobalTV}" "$4" 2>/dev/null
+            sed -i "s/,HKMTMedia$/,${AsianTV}#d/g" "$4" 2>/dev/null
+            sed -i "s/,HKMTMedia,no-resolve$/,${AsianTV},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##AsianTV:${AsianTV}" "$4" 2>/dev/null
+            sed -i "s/,PROXY$/,${Proxy}#d/g" "$4" 2>/dev/null
+            sed -i "s/,PROXY,no-resolve$/,${Proxy},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Proxy:${Proxy}" "$4" 2>/dev/null
+            sed -i "s/,Apple$/,${Apple}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Apple,no-resolve$/,${Apple},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Apple:${Apple}" "$4" 2>/dev/null
+            sed -i "s/,Hijacking,no-resolve$/,${AdBlock},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "s/,Hijacking$/,${AdBlock}#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##AdBlock:${AdBlock}" "$4" 2>/dev/null
+            sed -i "s/,DIRECT$/,${Domestic}#d/g" "$4" 2>/dev/null
+            sed -i "s/,DIRECT,no-resolve$/,${Domestic},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Domestic:${Domestic}" "$4" 2>/dev/null
+            sed -i "s/,Final$/,${Others}#d/g" "$4" 2>/dev/null
+            sed -i "s/,Final,no-resolve$/,${Others},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Others:${Others}" "$4" 2>/dev/null
+            sed -i "s/#d//g" "$4" 2>/dev/null
        else
-            sed -i '/^Rule:/,$d' "$4"
+            sed -i '/^rules:/,$d' "$4"
             cat /etc/openclash/ConnersHua_return.yaml >> "$4"
-            sed -i -e "s/,PROXY$/,${Proxy}#d/g" -e "/Rule:/a\##Proxy:${Proxy}"\
-            -e "s/,DIRECT$/,${Others}#d/g" -e "/Rule:/a\##Others:${Others}"\
-            -e "s/#d//g" "$4"
+            sed -i "s/,PROXY$/,${Proxy}#d/g" "$4" 2>/dev/null
+            sed -i "s/,PROXY,no-resolve$/,${Proxy},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Proxy:${Proxy}" "$4" 2>/dev/null
+            sed -i "s/,DIRECT$/,${Others}#d/g" "$4" 2>/dev/null
+            sed -i "s/,DIRECT,no-resolve$/,${Others},no-resolve#d/g" "$4" 2>/dev/null
+            sed -i "/rules:/a\##Others:${Others}" "$4" 2>/dev/null
+            sed -i "s/#d//g" "$4" 2>/dev/null
        fi
-       fi
-		fi
+    fi
+   fi
 elif [ "$2" = 0 ]; then
    [ -f "$8" ] && {
       grep '##source:' "$4" 1>/dev/null
       if [ "$?" -eq "0" ]; then
          cp "$8" /etc/openclash/configrules.bak
-         sed -i -n '/^Rule:/,$p' /etc/openclash/configrules.bak
-         sed -i '/^Rule:/,$d' "$4"
+         sed -i -n '/^rules:/,$p' /etc/openclash/configrules.bak
+         sed -i '/^rules:/,$d' "$4"
          cat /etc/openclash/configrules.bak >> "$4"
          rm -rf /etc/openclash/configrules.bak
       fi
@@ -186,8 +270,8 @@ fi
       fi
       
       if [ "$3" = 1 ]; then
-         sed -i '/^Rule:/a\##Custom Rules End##' "$4" 2>/dev/null
-         sed -i '/^Rule:/a\##Custom Rules##' "$4" 2>/dev/null
+         sed -i '/^rules:/a\##Custom Rules End##' "$4" 2>/dev/null
+         sed -i '/^rules:/a\##Custom Rules##' "$4" 2>/dev/null
          sed -i '/^##Custom Rules##/r/etc/openclash/custom/openclash_custom_rules.list' "$4" 2>/dev/null
          sed -i '/^ \{0,\}- MATCH,/i\##Custom Rules 2##' "$4" 2>/dev/null\
          || sed -i '/^ \{0,\}- FINAL,/i\##Custom Rules 2##' "$4" 2>/dev/null\
