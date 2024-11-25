@@ -2,8 +2,6 @@
 name: Compile The New Clash Meta Core
 
 on:
-  schedule:
-    - cron: "0 20 * * 1,3,5,6"
   workflow_dispatch:
   
 jobs:
