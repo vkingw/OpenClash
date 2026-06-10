@@ -90,11 +90,9 @@ jobs:
         run: |
           mkdir -p tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash
           cp -rf ./luci-app-openclash/. tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash/
-
-      - name: Copy OpenClash Source Codes
-        run: |
-          mkdir -p tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash
-          cp -rf ./luci-app-openclash/. tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash/
+          if [ "${{ matrix.target.name }}" = "apk" ]; then
+            find tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash -type f -name "Makefile" -exec sed -i 's/DEPENDS:=+dnsmasq-full/DEPENDS:=+dnsmasq-full +luci-compat/g' {} \;
+          fi
 
       - name: Update Third-Party Resources
         run: |
