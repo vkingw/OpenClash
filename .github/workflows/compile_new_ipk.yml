@@ -140,6 +140,19 @@ jobs:
           mkdir -p $(dirname "$COUNTRY_MMDB_PATH")
           cp tmp/Country.mmdb "$COUNTRY_MMDB_PATH"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Minify CSS (lightningcss)
+        run: |
+          CSS_PATH="tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash/root/www/luci-static/resources/openclash/css/oc.css"
+          SIZE_BEFORE=$(wc -c < "$CSS_PATH")
+          npx --yes lightningcss-cli --minify "$CSS_PATH" -o "$CSS_PATH.tmp"
+          mv "$CSS_PATH.tmp" "$CSS_PATH"
+          SIZE_AFTER=$(wc -c < "$CSS_PATH")
+          echo "CSS minified: ${SIZE_BEFORE} -> ${SIZE_AFTER} bytes ($(( 100 - SIZE_AFTER * 100 / SIZE_BEFORE ))% reduction)"
+
       - name: Compile po2lmo
         run: |
           cd tmp/${{ matrix.target.sdk_dir }}/package/luci-app-openclash/tools/po2lmo
