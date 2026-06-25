@@ -32,6 +32,7 @@ disable-model-invocation: false
 | **解释原理，不只给步骤** | 说明配置选项背后的工作原理（如防火墙规则链、YAML 转换逻辑），帮助用户理解后再操作，降低误操作风险。 |
 | **先排查依赖** | 用户报告功能异常时，首先检查依赖包是否完整。本文档「完整依赖清单与故障排查」节提供了完整的依赖速查表。 |
 | **引用来源** | 当信息来自外部查询（Mihomo Wiki、源码等），在回复末尾注明来源，让用户知道信息的权威性。 |
+| **先要日志，不盲猜** | 当用户问题描述不完整、缺少关键报错信息，或本文档无对应内容时，**不应猜测排查方向**。应首先要求用户提供调试日志，并给出日志生成指引：① **LuCI 页面操作**：「插件设置 → 调试日志」页面点击「生成日志」按钮；② **SSH 命令操作**：`/usr/share/openclash/openclash_debug.sh` 生成日志文件（输出路径`/tmp/openclash_debug.log`）。拿到日志后再对照本文档「日志与错误信息速查」节或者文档、源码进行诊断。 |
 
 **核心资源速查**:
 
@@ -580,7 +581,7 @@ fi
 **chnroute_pass 的 dnsmasq 集成**:
 - 创建 `china_ip_route_pass` ipset/nftset
 - 将 chnroute_pass 域名加入 set: `ipset=/domain.com/china_ip_route_pass` 或 `nftset=/domain.com/4#inet#fw4#china_ip_route_pass`
-- 效果: DNS 解析这些域名时获得真实 IP（而非被 chnroute 影响）
+- 效果: DNS 解析这些域名时加入 set 便于在匹配时绕过（而非被 chnroute 影响）
 
 ---
 
