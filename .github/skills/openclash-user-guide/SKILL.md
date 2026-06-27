@@ -8,7 +8,7 @@ instructions: |
   1. Always provide LuCI web UI navigation paths (e.g. 服务 → OpenClash → 插件设置 → 流量控制), not command-line unless explicitly requested.
   2. Explain underlying principles (firewall chains, YAML transformation logic) — not just steps.
   3. Check dependency integrity first when troubleshooting (see 完整依赖清单与故障排查 section).
-  4. Never guess — if information is not covered in this document, actively query Mihomo Wiki (https://wiki.metacubex.one/config/), Meta-Docs, or OpenClash source code.
+  4. Never guess — if information is not covered in this document, actively query Mihomo Wiki (https://wiki.metacubex.one/config/), Meta-Docs (https://github.com/MetaCubeX/Meta-Docs), OpenClash source code (https://github.com/vernesong/OpenClash/tree/dev), Mihomo core source code (https://github.com/MetaCubeX/mihomo/tree/Alpha), or Smart core source code (https://github.com/vernesong/mihomo/tree/Alpha).
   5. Cite sources when information comes from external queries.
 
 type: knowledge-base
@@ -26,8 +26,8 @@ disable-model-invocation: false
 
 | 原则 | 说明 |
 |------|------|
-| **主动查证，不猜测** | 遇到本文档未覆盖的 Mihomo 配置字段或实现细节时，**禁止编造**。必须使用工具主动查询外部资源（Mihomo Wiki / Meta-Docs / OpenClash 源码 / Smart 内核源码），整理后告知用户。详见文档末尾「超出本文档范围的查询」节。 |
-| **查源码，不只查文档** | 当用户询问"为什么某选项不生效"、"底层实现逻辑是什么"时，除 Mihomo 文档外，还应查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 和 [Smart 内核源码](https://github.com/vernesong/mihomo) 中的对应脚本/函数。 |
+| **主动查证，不猜测** | 遇到本文档未覆盖的 Mihomo 配置字段或实现细节时，**禁止编造**。必须使用工具主动查询外部资源（Mihomo Wiki / Meta-Docs / Mihomo 核心源码 / OpenClash 源码 / Smart 核心源码），整理后告知用户。详见文档末尾「超出本文档范围的查询」节。 |
+| **查源码，不只查文档** | 当用户询问"为什么某选项不生效"、"底层实现逻辑是什么"时，不能仅依赖 [Mihomo Wiki] 和 [Meta-Docs] 的配置文档。必须进一步查阅 [Mihomo 核心源码](https://github.com/MetaCubeX/mihomo/tree/Alpha)、[OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 和 [Smart 核心源码](https://github.com/vernesong/mihomo/tree/Alpha) 中的对应脚本/函数，理解实际执行逻辑。 |
 | **给出 LuCI 操作路径** | 所有操作指导必须指向 LuCI Web 界面的具体操作路径（如「服务 → OpenClash → 插件设置 → 流量控制」），而非命令行。仅在用户明确要求命令行操作时才提供终端命令。 |
 | **解释原理，不只给步骤** | 说明配置选项背后的工作原理（如防火墙规则链、YAML 转换逻辑），帮助用户理解后再操作，降低误操作风险。 |
 | **先排查依赖** | 用户报告功能异常时，首先检查依赖包是否完整。本文档「完整依赖清单与故障排查」节提供了完整的依赖速查表。 |
@@ -40,8 +40,9 @@ disable-model-invocation: false
 |------|-----|------|
 | Mihomo Wiki | `https://wiki.metacubex.one/config/` | Mihomo YAML 配置字段文档 |
 | Meta-Docs | `https://github.com/MetaCubeX/Meta-Docs` | Mihomo 配置字段权威参考 |
-| OpenClash 源码 | `https://github.com/vernesong/OpenClash` | 插件实现逻辑（Shell/Ruby/Lua 脚本） |
-| Smart 内核源码 | `https://github.com/vernesong/mihomo` | Smart 策略、LightGBM 模型实现 |
+| Mihomo 核心源码 | `https://github.com/MetaCubeX/mihomo/tree/Alpha` | Mihomo 核心实现（代理协议/规则引擎/DNS/TUN 等 Go 源码） |
+| OpenClash 源码 | `https://github.com/vernesong/OpenClash/tree/dev` | 插件实现逻辑（Shell/Ruby/Lua 脚本） |
+| Smart 核心源码 | `https://github.com/vernesong/mihomo/tree/Alpha` | Smart 策略、LightGBM 模型实现 |
 
 ---
 
@@ -295,7 +296,7 @@ Dashboard: http://路由器LAN_IP:9090/ui/
 > 确认核心状态为「运行中」；然后建议用户在 LuCI 的「插件设置 → 调试日志」页面生成调试日志
 > （包含完整防火墙规则链）。如需实时排查，可在路由器终端执行 `nft list ruleset`（fw4）或
 > `iptables -t nat -L -n`（fw3）查看实际规则。结合下表中的链结构和规则排序，对比用户的需求判断规则是否如预期生效。
-> 如涉及底层实现细节，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 如涉及底层实现细节，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `/etc/init.d/openclash` 的 `set_firewall()` 函数。
 > 常见问题：规则排序错误（bypass 在 redirect 之后）、fwmark 未设置导致策略路由不生效、
 > DNS 劫持端口与 dnsmasq 冲突。
@@ -1216,7 +1217,7 @@ fi
 > "旁路由/网关模式下如何配置"、"IPv6 流量如何控制"），AI 应结合本章节的防火墙规则详解
 > 和 [Mihomo 监听器文档](https://wiki.metacubex.one/config/listeners/) 回答，说明不同模式
 > 的工作原理（而非仅给出操作步骤），帮助用户理解后做出选择。
-> 涉及防火墙实现细节时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 涉及防火墙实现细节时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `init.d/openclash` 和 `yml_change.sh` 的相关逻辑。
 > `set_firewall()` 通过 UCI `firewall.openclash` 注册为 `/var/etc/openclash.include`，由 OpenWrt firewall3/firewall4 框架加载。
 > 支持 fw4 (nftables) 和 fw3 (iptables) 双后端自动检测。
@@ -1300,7 +1301,7 @@ fi
 > "Fake-IP 和 Redir-Host 的 DNS 行为有何不同"、"如何让特定域名不走 Fake-IP"），AI 应结合本文档的
 > 「防火墙与 DNS 规则详解」章节和 [Mihomo DNS 配置文档](https://wiki.metacubex.one/config/dns/)
 > 解释底层原理，然后告知用户在 LuCI 中的操作路径。
-> 涉及 dnsmasq 劫持实现时可查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 涉及 dnsmasq 劫持实现时可查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `init.d/openclash` 的 `change_dnsmasq()` 函数。对于 DNS 劫持失败的排查，首先让用户检查
 > 「运行状态」页面查看 DNS 端口是否在监听。
 
@@ -1355,7 +1356,7 @@ fi
 > **AI 行为指引**: 当用户询问访问控制问题时（如"如何让某个设备不走代理"、"如何让内网某设备全局代理"、
 > "代理黑名单和白名单的区别"、"如何添加自定义代理接口"），AI 应结合本章节的防火墙规则详解
 > （特别是「各选项对防火墙规则的具体影响」表格）告知用户各选项组合的效果。
-> 涉及黑白名单匹配逻辑时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 涉及黑白名单匹配逻辑时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `init.d/openclash` 的 `set_firewall()` 和 `ipset`/`nft set` 创建逻辑。
 > 对于 IP 段/CIDR 的写法问题，解释 `192.168.1.0/24` 等标准 CIDR 格式。
 > `set_firewall()` 在 redirect/TPROXY 链中插入条件 return 规则，匹配的设备/流量返回原始路由表（不走代理）。
@@ -1428,7 +1429,7 @@ fi
 > **AI 行为指引**: 当用户询问流媒体相关问题时（如"如何解锁 Netflix/Disney+"、"Bilibili 地区选项代表什么"、
 > "如何添加新的流媒体服务"、"Group Filter 正则怎么写"），AI 应查阅 [Mihomo 规则文档](https://wiki.metacubex.one/config/rules/)
 > 了解 GEOSITE/RULE-SET 等规则类型，并结合 OpenClash 的流媒体增强设置告知用户具体配置步骤。
-> 涉及流媒体解锁检测逻辑时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 涉及流媒体解锁检测逻辑时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `openclash_streaming_unlock.lua` 脚本。
 > 注意：`openclash_streaming_unlock.lua` 仅负责已配置服务的节点测试和自动切换，不负责 Smart 策略。
 
@@ -1717,7 +1718,7 @@ fi
 > **AI 行为指引**: 当用户询问 DNS 配置问题时（如"如何配置 DoH/DoT"、"nameserver-policy 怎么写"、"hosts 格式是什么"、
 > "fallback-filter 各字段含义"等），AI 应查阅 [Mihomo DNS 配置文档](https://wiki.metacubex.one/config/dns/)
 > 了解各字段的详细含义和用法，涉及 OpenClash 侧 DNS 覆写实现时查阅
-> [OpenClash 源码](https://github.com/vernesong/OpenClash) 中 `yml_change.sh` 的 `yml_dns_custom()` 函数，
+> [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中 `yml_change.sh` 的 `yml_dns_custom()` 函数，
 > 然后**结合 OpenClash 覆写模块的操作方式**告知用户如何配置，而非仅给出文档链接。
 
 ### enable_custom_dns — 自定义上游 DNS 服务器 (Custom DNS Setting)
@@ -1814,7 +1815,7 @@ fi
 > **AI 行为指引**: 当用户询问 DNS 服务器类型（如"DoH 和 DoT 有什么区别"、"quic 类型怎么用"、
 > "dns 服务器的 `#proxy` 和 `#RULES` 后缀是什么意思"）时，AI 应查阅
 > [Mihomo DNS 类型文档](https://wiki.metacubex.one/config/dns/type/) 了解每种 DNS 协议的使用方法和参数，
-> 涉及 OpenClash 侧实现时查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 涉及 OpenClash 侧实现时查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `yml_change.sh` 的 DNS 相关逻辑，然后告知用户具体的配置写法。
 
 用户可以添加多条 DNS 服务器记录，每条包含：
@@ -1847,7 +1848,7 @@ dns:
 > "find-process-mode 各模式的含义"、"sniffer 如何自定义"、"geodata-loader 选哪个"），
 > AI 应查阅 [Mihomo 全局配置文档](https://wiki.metacubex.one/config/general/) 和
 > [Mihomo Sniffer 文档](https://wiki.metacubex.one/config/sniff/) 了解各选项的详细含义，
-> 涉及 OpenClash 侧 Meta 选项注入实现时查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中
+> 涉及 OpenClash 侧 Meta 选项注入实现时查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
 > `yml_change.sh` 的 sniffer/Meta 相关段，然后结合 OpenClash 的覆写设置操作路径告知用户。
 
 ### enable_tcp_concurrent — 启用 TCP 并发 (Enable Tcp Concurrent)
@@ -1950,12 +1951,32 @@ dns:
 > Smart 策略的运行时节点选择由 **Mihomo 内核 Smart 模块内部处理**，无需外部脚本干预。
 >
 > **AI 行为指引**: 当用户询问 Smart 策略相关问题时（如"Smart 和 url-test 有什么区别"、"如何训练 Smart 模型"、
-> "prefer-asn 是什么"、"sample-rate 怎么设置"、"LGBM 模型如何自定义下载"），AI 应查阅
-> [Smart 内核源码](https://github.com/vernesong/mihomo) 了解
-> Smart 策略组的工作原理和参数含义，涉及 Smart 内核实现时查阅
-> [Smart 内核源码](https://github.com/vernesong/mihomo)，然后结合 OpenClash 的智能设置标签页操作方式告知用户。
-> **关键提醒**：Smart 策略使用 LightGBM 模型进行节点质量预测，需要在配置文件
-> 中将策略组类型设为 `smart` 才能启用，Mihomo 内核内部完成节点选择，
+> "prefer-asn 是什么"、"sample-rate 怎么设置"、"LGBM 模型如何自定义下载"），AI 应：
+> 1. 首先查阅下方「智能设置标签页」中对应 UCI 选项的说明，给出 LuCI 操作路径（覆写设置 → 智能设置）
+> 2. Smart 策略组是 **Smart 核心源码独有的功能**（上游 Mihomo 核心无此特性），所有实现细节均应查阅
+>    [Smart 核心源码](https://github.com/vernesong/mihomo/tree/Alpha)：
+>    - 策略组节点选择逻辑 → `adapter/outboundgroup/smart.go`（`selectProxies()`、`Unwrap()`、`InitSmart()`）
+>    - LightGBM 模型加载/推理/数据收集 → `component/smart/lightgbm/`（`lightgbm.go`、`collector.go`、`transform.go`）
+>    - Smart 持久化存储与权重计算 → `component/smart/cachefile.go`、`component/smart/weight.go`
+> 3. **Smart 节点选择逻辑简述**（`adapter/outboundgroup/smart.go` → `selectProxies()`）：
+>    ① 获取目标 IP/域名的 ASN 信息 → ② 优先检查用户手动选择的节点 → ③ 查持久化缓存
+>    （boltDB 存储的历史最优结果）→ ④ 查预取缓存（周期性后台预计算）→ ⑤ 实时调用
+>    `store.GetBestProxyForTarget()` 综合历史延迟、抖动、丢包率及 LightGBM 模型预测权重
+>    计算最优节点 → ⑥ `filterProxies()` 按权重排序过滤。后台定时任务持续维护排名
+>    （`updateNodeRanking`）、预取（`runPrefetch`）、稳定性检查（`checkNodesStable`）、
+>    被封节点恢复检测（`checkBlockedNodes`）、主机状态检查（`checkHostStatus`）。
+> 4. **关于"如何训练 Smart 模型"**：用户如需自行训练模型（而非使用预训练模型），AI 应主动读取
+>    [Smart 核心源码](https://github.com/vernesong/mihomo/tree/Alpha) 中 `component/smart/lightgbm/` 目录，
+>    了解并告知用户以下信息：
+>    - **数据来源**：`component/smart/lightgbm/collector.go` — 开启 `smart_collect` 后核心会在 `/etc/openclash/` 下生成 CSV 训练数据文件（含延迟、抖动、丢包率等特征；特征工程见 `transform.go`）
+>    - **LightGBM 版本**：查阅 `go.mod` 中 `vernesong/leaves` 依赖确认支持的 LightGBM 版本
+>    - **环境搭建**：在 PC/服务器上安装对应版本的 LightGBM Python 包，准备训练环境
+>    - **训练脚本**：参考 `component/smart/lightgbm/` 中的特征处理与模型结构，为用户创建可运行的示例训练脚本（读取 CSV → 特征变换 → 训练 LightGBM → 导出 Model.bin）
+>    - **模型部署**：训练完成后将 `Model.bin` 上传到可访问的 URL，通过 `lgbm_custom_url` 指定；或替换 `/etc/openclash/Model.bin`；模型加载与推理见 `lightgbm.go` 中的 `WeightModel`
+>    - **日常使用**：大多数用户无需自行训练，开启 `lgbm_auto_update` 即可自动下载预训练模型
+> **关键提醒**：Smart 策略使用 LightGBM 模型进行节点质量预测，需要在配置文件中将策略组类型设为 `smart`
+> 才能启用（通过 `auto_smart_switch` 自动转换或手动修改 YAML）。Smart 核心在运行时根据模型预测结果
+> 和实时延迟数据综合选择最优节点，无需外部脚本干预。
 
 ### auto_smart_switch — Smart 策略自动切换 (Smart Auto Switch)
 - **UCI**: `openclash.@config_overwrite[0].auto_smart_switch`
@@ -2046,7 +2067,7 @@ dns:
 
 ### 规则编写指南
 
-> **当用户描述需求（如"我想让某个域名走代理"、"禁止某个 IP 走代理"）时，AI 应查阅 [Mihomo 路由规则文档](https://wiki.metacubex.one/config/rules/) 了解各规则类型的作用，涉及规则注入实现时查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash) 中 `yml_rules_change.sh` 和 `custom_rules*.list` 的处理逻辑，然后告知用户具体的规则写法。**
+> **当用户描述需求（如"我想让某个域名走代理"、"禁止某个 IP 走代理"）时，AI 应查阅 [Mihomo 路由规则文档](https://wiki.metacubex.one/config/rules/) 了解各规则类型的作用，涉及规则注入实现时查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中 `yml_rules_change.sh` 和 `custom_rules*.list` 的处理逻辑，然后告知用户具体的规则写法。**
 
 **Mihomo 支持的规则类型速查**:
 
@@ -2111,7 +2132,7 @@ dns:
 > **AI 行为指引**: 当用户询问订阅相关问题（如"如何过滤节点"、"订阅转换怎么用"、"订阅 URL 格式不对怎么办"、
 > "keyword 和 ex_keyword 的区别"、"Age 加密是什么"），AI 应查阅 [Mihomo 代理协议文档](https://wiki.metacubex.one/config/proxies/)
 > 了解节点名称的命名规范和常见格式，涉及订阅处理实现细节时查阅
-> [OpenClash 源码](https://github.com/vernesong/OpenClash) 中 `openclash.sh` 的
+> [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中 `openclash.sh` 的
 > `sub_info_get()`、`config_cus_up()`、`server_key_match()` 等函数，
 > 然后告知用户具体的配置方法。对于订阅转换后端问题，
 > 告知用户转换后端的地址格式和模板 URL 的作用。
@@ -2575,13 +2596,13 @@ curl -X POST http://127.0.0.1:9090/cache/dns/flush
 > "如何覆盖订阅中的 DNS 设置"、"覆写和 LuCI 设置哪个优先级高"），AI 应：
 > 1. 首先在本章节查找答案（10.2 格式说明、10.2.3 操作符、10.5 实战示例）
 > 2. 如果涉及具体的 Mihomo YAML 字段用法，查阅 [Mihomo 配置文档](https://wiki.metacubex.one/config/)
-> 3. 如果涉及覆写模块的执行机制和排序逻辑，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash)
+> 3. 如果涉及覆写模块的执行机制和排序逻辑，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev)
 >    中 `init.d/openclash` 的 `overwrite_file()` 函数和 `/tmp/yaml_overwrite.sh` 生成逻辑。
 > 4. **关键提醒**：覆写模块分两阶段执行——`[General]` 段在 `yml_change.sh` 之前写入 UCI（可影响 `yml_change.sh` 行为），`[Overwrite]` 和 `[YAML]` 段在 `yml_change.sh` 和 `yml_rules_change.sh` 之后执行，因此**可以覆盖**这两个脚本写入的所有内容（包括「插件强制覆盖/禁用的设置」表格中的硬编码项）。**覆盖硬编码项可能导致 OpenClash 工作异常**（如 `allow-lan: false` 会使局域网设备无法使用代理端口），请提醒用户谨慎操作。
 >    「服务→OpenClash→覆写设置」CBI 页面的选项均由 `yml_change.sh` 和 `yml_rules_change.sh` 执行，同样会被覆写模块的 `[Overwrite]` 和 `[YAML]` 段覆盖。
 >    此外，覆写文件**必须包含至少一个段头**（`[General]`、`[Overwrite]`、`[YAML]` 之一），否则所有内容被跳过，覆写不生效。
 >    如果用户发现覆写不生效，告知用户：①检查段头是否存在；②检查文件是否匹配当前配置（`config` 字段）。
-> 5. **示例优先原则**：当用户询问「如何添加/覆写某个配置」时，优先使用 `[YAML]` 段格式给出示例（语法清晰、不易出错）；仅当需要动态逻辑（如条件判断、循环处理）时才推荐 `[Overwrite]` 段。
+> 5. **示例优先原则**：当用户询问「如何添加/覆写某个配置」时，优先使用 `[YAML]` 段格式给出示例（语法清晰、不易出错）；仅当需要动态逻辑（如条件判断、循环处理）时才推荐 `[Overwrite]` 段。在 `[YAML]` 段优先的前提下，应**先明确或询问用户的具体需求**（如：要追加还是替换？作用于哪个键路径？目标是数组还是哈希？期望匹配条件是什么？），然后**结合 10.2.3 节的操作符语法**（`!` 强制覆盖 / `+` 数组追加 / `-` 数组删除 / `*` 批量条件更新等）给出精准的、可直接使用的 YAML 片段示例，而非仅给出泛泛的描述或通用模板。
 
 **核心机制**: OpenClash 的覆写模块分两个阶段执行（均在 `/etc/init.d/openclash start_service` 流程中）：
 
@@ -3052,8 +3073,9 @@ fi
 |--------|------|----------|----------|
 | 1 | **Mihomo Wiki** `https://wiki.metacubex.one/config/` | 使用 `fetch_webpage` 抓取相关页面 | Mihomo YAML 配置字段的含义、可选值、用法 |
 | 2 | **Meta-Docs 仓库** `github.com/MetaCubeX/Meta-Docs` | 使用 `github_text_search` 搜索 `docs/config/` 目录 | 需要精确的字段类型、默认值、完整配置示例 |
-| 3 | **OpenClash 源码** `github.com/vernesong/OpenClash` | 使用 `github_text_search` 搜索对应脚本/函数 | 需要了解插件侧的实现逻辑、UCI 到 YAML 的转换细节 |
-| 4 | **Smart 内核源码** `github.com/vernesong/mihomo` | 使用 `github_text_search` 搜索内核代码 | Smart 策略、LightGBM 模型的底层实现 |
+| 3 | **OpenClash 源码** `github.com/vernesong/OpenClash/tree/dev` | 使用 `github_text_search` 搜索对应脚本/函数 | 需要了解插件侧的实现逻辑、UCI 到 YAML 的转换细节 |
+| 4 | **Mihomo 核心源码** `github.com/MetaCubeX/mihomo/tree/Alpha` | 使用 `github_text_search` 搜索核心代码 | 代理协议实现、规则引擎、DNS 解析、TUN 栈等核心底层逻辑 |
+| 5 | **Smart 核心源码** `github.com/vernesong/mihomo/tree/Alpha` | 使用 `github_text_search` 搜索核心代码 | Smart 策略、LightGBM 模型的底层实现 |
 
 **具体触发条件**（满足任一即主动查询）：
 - 用户询问的配置字段在本文档任何章节中均未出现
@@ -3067,6 +3089,6 @@ fi
 **AI 工作流程**：
 1. 确认问题超出本文档覆盖范围
 2. 根据问题类型选择对应的外部资源
-3. **主动查询**：使用 `fetch_webpage` 抓取 Mihomo Wiki 页面，或使用 `github_text_search` 搜索 Meta-Docs/OpenClash/Smart 源码
+3. **主动查询**：使用 `fetch_webpage` 抓取 Mihomo Wiki 页面，或使用 `github_text_search` 搜索 Meta-Docs/OpenClash/Mihomo 核心/Smart 核心源码
 4. 将查询到的信息**翻译、整理**后告知用户，而非直接丢链接
 5. 在回复末尾注明信息来源（如「以上信息来自 Mihomo Wiki / Meta-Docs」），让用户知道信息的权威来源
