@@ -450,6 +450,104 @@ nft insert rule inet fw4 srcnat position 0 oifname utun counter return
 
 IPv6 模式 (`ipv6_mode`): `0`=TProxy, `1`=Redirect, `2`=TUN, `3`=Mix
 
+#### E. ICMP/Ping 处理详解
+
+> **AI 行为指引**: 当用户询问「为什么 ping 不走代理」、「ping 通但 TCP 不通」、「Fake-IP 模式下 ping 198.18.x.x 被拒绝」等问题时，AI 应结合本节解释 ICMP 在非 TUN 和 TUN 模式下的不同处理方式。
+
+OpenClash 对 ICMP（ping）请求的处理**取决于运行模式**：
+
+**1. 非 TUN 模式（Redir-Host / Fake-IP，`en_mode_tun` 为空）**:
+
+ICMP echo-request 在 `openclash_mangle` 链中被**仅标记 fwmark（0x162）但不重定向**：
+
+```bash
+nft add rule inet fw4 openclash_mangle ip protocol icmp \
+  icmp type echo-request mark set "$PROXY_FWMARK" counter accept comment "OpenClash ICMP Mark"
+```
+
+- **ICMP 不会被代理**：非 TUN 模式下只有 TCP（REDIRECT）和 UDP（TPROXY）被重定向到 Mihomo 内核，ICMP 仅被标记 fwmark 后直接放行（`accept`）。这意味着 ping 请求走的是系统原始路由表，不会经过代理节点。
+- **fwmark 的作用**：标记 0x162 仅影响策略路由选择（如旁路由回流），不影响代理行为本身。
+- **绕过检查仍然生效**：ICMP 规则之前的 localnetwork/WAN-AC/LAN-AC/china_ip_route 等 RETURN 规则同样适用于 ICMP——被匹配的 ICMP 包会跳过标记规则。
+- **路由器自身 ICMP**：当 `router_self_proxy=1` 时，路由器发出的 ping 在 `openclash_mangle_output` 链中同样被标记。
+
+**2. TUN 模式（`en_mode_tun=1`）**:
+
+ICMP echo-request 在 `openclash_mangle` 链中被标记 fwmark，随后通过策略路由进入 TUN 虚拟网卡：
+
+```bash
+# 步骤1: 标记 ICMP
+nft add rule inet fw4 openclash_mangle ip protocol icmp \
+  icmp type echo-request mark set "$PROXY_FWMARK" counter accept
+
+# 步骤2: 策略路由（系统层面）— 所有标记 0x162 的流量路由到 TUN
+ip rule add fwmark 0x162 table 0x162
+ip route add default dev utun table 0x162
+```
+
+- **ICMP 被代理**：TUN 模式下所有标记 fwmark 的流量（包括 ICMP）被策略路由导向 `utun` 虚拟网卡，由 Mihomo 内核的 TUN 协议栈处理。
+- **Mihomo 内核配置**：TUN 模式下 Mihomo 支持两个 ICMP 相关选项：
+  - `icmp-timeout`（默认自动）：ICMP 连接超时时间（秒）
+  - `disable-icmp-forwarding`（默认 false）：设为 `true` 可禁用 TUN 的 ICMP 转发（ping 将不被代理）
+
+**3. Fake-IP 非 TUN 模式的 Ping 阻断**:
+
+**仅在 Fake-IP 非 TUN 模式下**（`en_mode=fake-ip`, `en_mode_tun` 为空），对 Fake-IP 地址段（默认 `198.18.0.0/16`）的 ping 会被防火墙**显式 REJECT**：
+
+```bash
+# INPUT 链 — 阻止路由器自身收到发往 Fake-IP 的 ping
+nft insert rule inet fw4 input position 0 ip protocol icmp \
+  icmp type echo-request ip daddr { 198.18.0.0/16 } counter reject
+
+# FORWARD 链 — 阻止局域网设备间转发 Fake-IP 的 ping
+nft insert rule inet fw4 forward position 0 ip protocol icmp \
+  icmp type echo-request ip daddr { 198.18.0.0/16 } counter reject
+
+# OUTPUT 链 — 阻止路由器发出对 Fake-IP 的 ping（排除 OpenClash 自身进程 skgid=65534）
+nft insert rule inet fw4 output position 0 ip protocol icmp \
+  icmp type echo-request ip daddr { 198.18.0.0/16 } \
+  skgid != 65534 counter reject
+```
+
+这是因为在非 TUN 模式下，Fake-IP 地址没有对应的 TCP/UDP 重定向路径（TCP 走 REDIRECT、UDP 走 TPROXY，但 ICMP 都不到达内核），发往这些地址的 ping 无意义且会干扰网络诊断。OUTPUT 链排除 `skgid=65534` 是为了避免影响 OpenClash 自身进程的内部通信。
+
+> **TUN 模式下的区别**：Fake-IP **TUN 模式不添加这些 REJECT 规则**。因为 ICMP 经策略路由进入 TUN 虚拟网卡后，由内核的 `skipPingForwardingByAddr()` 判断——若目标是 Fake-IP，内核返回伪造 echo-reply（~0ms 虚假延迟），不产生实际网络流量。
+
+**4. IPv6 ICMP（ICMPv6）**:
+
+仅在 IPv6 TUN/混合模式（`ipv6_mode=2` 或 `3`）下标记：
+
+```bash
+nft add rule inet fw4 openclash_mangle_v6 ip6 nexthdr icmpv6 \
+  icmpv6 type echo-request mark set "$PROXY_FWMARK" counter accept
+```
+
+IPv6 非 TUN 模式下 ICMPv6 **不被标记也不被代理**。IPv6 Fake-IP 地址范围的 ping 在**非 TUN 的 IPv6 模式下**被 REJECT（返回 `icmpv6 admin-prohibited`），条件为 `$ipv6_mode -ne 2 -a $ipv6_mode -ne 3`。TUN/Mix 模式下的 IPv6 Fake-IP ping 同样由内核的 `skipPingForwardingByAddr()` 处理（伪造回复）。
+
+**总结**:
+
+| 运行模式 | ICMP 进入 TUN | ICMP fwmark | 实际处理 |
+|----------|-------------|-------------|----------|
+| Redir-Host (非TUN) | ❌ | ✅ 标记 0x162 | 仅标记后放行，不经内核处理 |
+| Fake-IP (非TUN) | ❌ | ✅ 标记 0x162 | 防火墙 REJECT Fake-IP 范围的 ping |
+| Redir-Host TUN | ✅ | ✅ 标记 0x162 | 真实 IP → DIRECT 直连延迟 |
+| Fake-IP TUN | ✅ | ✅ 标记 0x162 | 真实 IP → DIRECT 直连；Fake-IP → 伪造回复（~0ms 虚假延迟） |
+| Redir-Host Mix | ✅ | ✅ 标记 0x162 | 同 Redir-Host TUN：ICMP 标记后经策略路由进入 TUN，DIRECT 直连 |
+| Fake-IP Mix | ✅ | ✅ 标记 0x162 | 同 Fake-IP TUN：真实 IP → DIRECT 直连；Fake-IP → 内核伪造回复 |
+
+> **实用提示**：如果用户发现 ping 不通但网页正常，首先确认不是 Fake-IP **非 TUN** 模式下在 ping 被代理的域名（Fake-IP 返回 `198.18.x.x`，防火墙直接 REJECT）。Fake-IP TUN/Mix 模式下 ping Fake-IP 地址会返回虚假 ~0ms 延迟。非 Fake-IP 的真实 IP ping 在 TUN/Mix 模式下走 DIRECT 直连，延迟反映的是本地网络质量。
+
+**内核侧 ICMP 处理机制**（`listener/sing_tun/prepare.go` — Mihomo TUN 监听器）:
+
+当 ICMP echo-request 经策略路由进入 TUN 虚拟网卡后，Mihomo 内核按以下优先级处理：
+
+1. **目标是 Fake-IP 地址**（`resolver.IsFakeIP(addr)`） → 返回 `nil, nil`，内核用**伪造的 echo-reply** 回复。上层看到 "ping 成功" 但实际未经过网络，延迟显示为虚假的 ~0ms
+2. **目标是 TUN 接口自身 IP**（`inet4_address` / `inet6_address` 范围内） → 同上，伪造回复
+3. **`disable-icmp-forwarding: true`** → 所有 ICMP 均伪造回复
+4. **以上均不满足**（真实 IP 且未禁用转发） → 通过 `ping.ConnectDestination()` 以 **DIRECT 模式**发出真实 ICMP 包，等待真实 reply。延迟为本地网络到目标的实际 RTT
+5. **ICMP 超时**: 默认 10 秒（`sing.go` 常量），可通过 `icmp-timeout` 自定义
+
+> **关键结论**: TUN 模式下 ping 的处理分两种情况——目标是 Fake-IP → 虚假 0ms 延迟；目标是真实 IP → DIRECT 直连延迟。ping **始终不经过代理节点**，这与 TCP/UDP 流量（经代理转发）的行为不同。
+
 ---
 
 ### 二、fw3 (iptables/ipset) 等效链
@@ -519,6 +617,8 @@ iptables -t mangle -A PREROUTING -p udp -j openclash
 | **`chnroute_pass`** (绕过指定区域 IPv4 黑名单 / Chnroute Bypassed List) | 已配置 | 创建 `china_ip_route_pass` nft set，配合 dnsmasq 将指定域名解析的 IP 加入 set，防火墙规则中优先于 `china_ip_route` 匹配（确保这些 IP 不被绕行规则跳过） |
 | **`ipv6_enable`** (IPv6 流量代理 / Proxy IPv6 Traffic) | `1` | 创建完整的 IPv6 防火墙链：`openclash_v6`(TCP REDIRECT)、`openclash_mangle_v6`(UDP TPROXY)、`openclash_output_v6`(路由自身)、`openclash_post_v6`(旁路由 SNAT) |
 | **`local_network6_pass`** (本地 IPv6 绕过地址 / Local IPv6 Network Bypassed List) | 已配置 | 创建 IPv6 `localnetwork` nft set，IPv6 链中匹配本地 IPv6 段 RETURN |
+| **ICMP/Ping 处理**（无 UCI 选项，由运行模式决定） | Redir-Host / Fake-IP（非 TUN） | ICMP echo-request 仅标记 fwmark `0x162` 后 accept，**不被代理**（只有 TCP/UDP 被重定向到内核）；Fake-IP 非 TUN 模式下对 `198.18.0.0/16` 的 ping 被防火墙 REJECT（INPUT/FORWARD/OUTPUT 三链阻断） |
+| | TUN 模式 / Mix 模式 | ICMP 标记 fwmark 后经策略路由进入 TUN 虚拟网卡，由 TUN 内核处理（真实 IP → DIRECT 直连延迟，Fake-IP → 伪造回复 ~0ms）；可通过 Mihomo 的 `disable-icmp-forwarding` 禁用 |
 
 ---
 
@@ -806,7 +906,7 @@ fi
 |------|------|----------|
 | **启动/停止开关** | 切换核心运行状态 | 调用 `action_oc_action` → `/etc/init.d/openclash start/stop` |
 | **重启按钮** | 重启核心 | 调用 `/etc/init.d/openclash restart` |
-| **覆写模块按钮** | 跳转到覆写设置页 | — |
+| **覆写模块按钮** | 在运行状态页弹出覆写编辑器（与菜单「服务→OpenClash→覆写设置」独立） | 调用 `editOverwrite()` → 在运行状态页弹出覆写编辑模态框 |
 | **插件/核心版本** | 显示当前版本号 | 核心版本: 执行 `/etc/openclash/core/clash_meta -v` 解析输出; 插件版本: 读取 opkg/apk 包数据库; 远程最新: 读取 `/tmp/clash_last_version`。前端通过 `/update` 端点 (action_update) 获取，非 `/status` 端点 |
 | **主题切换** | Light(太阳)/Dark(月亮)/Auto(自动) 三档切换 | 前端 CSS 变量 + localStorage |
 | **公告横幅** | 滚动显示项目公告 (24h 缓存) | `/announcement` 端点 |
@@ -2465,7 +2565,7 @@ curl -X POST http://127.0.0.1:9090/cache/dns/flush
 # 第十部分：覆写模块详解
 
 > 覆写模块 (Overwrite Module) 是 OpenClash 的高级自定义功能
-> LuCI 路径: `服务→OpenClash→覆写设置`，或运行状态页「覆写模块」按钮
+> 入口: 运行状态页顶部「覆写模块」按钮（弹出覆写编辑器，与启动/停止开关并列），或菜单 `服务→OpenClash→覆写设置`（独立 CBI 页面）
 > UCI Section: `openclash.config_overwrite` (支持多条，按 order 排序)
 > 覆写文件存储: `/etc/openclash/overwrite/<名称>` (本地) 或通过 HTTP 远程拉取
 
@@ -2477,17 +2577,27 @@ curl -X POST http://127.0.0.1:9090/cache/dns/flush
 > 2. 如果涉及具体的 Mihomo YAML 字段用法，查阅 [Mihomo 配置文档](https://wiki.metacubex.one/config/)
 > 3. 如果涉及覆写模块的执行机制和排序逻辑，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash)
 >    中 `init.d/openclash` 的 `overwrite_file()` 函数和 `/tmp/yaml_overwrite.sh` 生成逻辑。
-> 4. **关键提醒**：覆写模块在 `yml_change.sh` 之前执行（启动流程第3步的顺序），因此覆写的值可能被后续脚本覆盖。
->    如果用户发现覆写不生效，告知用户检查本文档的「插件强制覆盖/禁用的设置」表格。
+> 4. **关键提醒**：覆写模块分两阶段执行——`[General]` 段在 `yml_change.sh` 之前写入 UCI（可影响 `yml_change.sh` 行为），`[Overwrite]` 和 `[YAML]` 段在 `yml_change.sh` 和 `yml_rules_change.sh` 之后执行，因此**可以覆盖**这两个脚本写入的所有内容（包括「插件强制覆盖/禁用的设置」表格中的硬编码项）。**覆盖硬编码项可能导致 OpenClash 工作异常**（如 `allow-lan: false` 会使局域网设备无法使用代理端口），请提醒用户谨慎操作。
+>    「服务→OpenClash→覆写设置」CBI 页面的选项均由 `yml_change.sh` 和 `yml_rules_change.sh` 执行，同样会被覆写模块的 `[Overwrite]` 和 `[YAML]` 段覆盖。
+>    此外，覆写文件**必须包含至少一个段头**（`[General]`、`[Overwrite]`、`[YAML]` 之一），否则所有内容被跳过，覆写不生效。
+>    如果用户发现覆写不生效，告知用户：①检查段头是否存在；②检查文件是否匹配当前配置（`config` 字段）。
+> 5. **示例优先原则**：当用户询问「如何添加/覆写某个配置」时，优先使用 `[YAML]` 段格式给出示例（语法清晰、不易出错）；仅当需要动态逻辑（如条件判断、循环处理）时才推荐 `[Overwrite]` 段。
 
-**核心机制**: OpenClash 在每次启动时（`/etc/init.d/openclash start_service` 流程中），在 `yml_change.sh` 和 `yml_rules_change.sh` 执行完毕后、启动核心前，动态生成一个 Shell 脚本 `/tmp/yaml_overwrite.sh`，然后执行它。这个脚本会：
+**核心机制**: OpenClash 的覆写模块分两个阶段执行（均在 `/etc/init.d/openclash start_service` 流程中）：
 
+**第一阶段 — UCI 预处理**（`overwrite_file()` 函数，在 `yml_change.sh` 之前执行）：
 1. 遍历 UCI 中所有 `config_overwrite` 条目（按 `order` 排序）
-2. 检查该覆写是否匹配当前配置文件（`config` 字段支持 `all` 或指定文件名）
+2. 检查覆写是否匹配当前配置文件（`config` 字段支持 `all` 或指定文件名）
 3. 读取 `/etc/openclash/overwrite/<名称>` 文件内容
-4. 将 `[General]` 段的键值对导出为环境变量
-5. 执行 `[Overwrite]` 段的 Shell 命令（可使用 `ruby_*` 函数族修改 YAML）
-6. 将 `[YAML]` 段的 YAML 内容合并到运行配置
+4. 解析 `[General]` 段 → 将键值对写入 UCI `openclash.@overwrite[0]`（如 `EN_MODE`、`DNS_PORT` 等），供后续 `yml_change.sh` 读取
+5. 处理 `DOWNLOAD_FILE` 指令 → 下载外部文件
+6. 生成 `/tmp/yaml_overwrite.sh` 脚本（包含 `[Overwrite]` 和 `[YAML]` 段的内容，暂不执行）
+
+**第二阶段 — YAML 覆写**（`/tmp/yaml_overwrite.sh`，在 `yml_change.sh` 和 `yml_rules_change.sh` 之后执行）：
+7. 执行 `[Overwrite]` 段的 Shell 命令（可使用 `ruby_*` 函数族修改 YAML）
+8. 将 `[YAML]` 段的 YAML 内容深度合并到运行配置
+
+> **执行顺序含义**：`[General]` 段在 `yml_change.sh` 之前生效（因为写入 UCI），因此可以影响 `yml_change.sh` 的行为；`[Overwrite]` 和 `[YAML]` 段在 `yml_change.sh` 和 `yml_rules_change.sh` 之后执行，因此**可以覆盖这两个脚本的所有输出**——包括「插件强制覆盖/禁用的设置」表格中的硬编码项（如 `allow-lan`、`bind-address`、`sniffer.sniff` 等）。⚠️ **覆盖这些硬编码项可能导致功能异常**，请谨慎使用。
 
 **覆写模块能做什么**:
 - 给订阅配置**追加/覆盖**任意 Mihomo YAML 字段（如 DNS、Sniffer、TUN、规则等）
@@ -2510,6 +2620,8 @@ curl -X POST http://127.0.0.1:9090/cache/dns/flush
 [YAML]
 # 原始 YAML 片段，将合并到运行配置
 ```
+
+> **⚠️ 强制要求**：覆写文件**必须包含至少一个段头**（`[General]`、`[Overwrite]`、`[YAML]` 之一），否则所有内容将被忽略，覆写模块不会生效。这是因为 `overwrite_file()` 函数（`/etc/init.d/openclash`）按段头解析文件内容——所有标志位 `in_general`/`in_overwrite`/`in_yaml` 初始为 `0`，仅在遇到对应段头时才设为 `1`。段头之前、之后无段头的内容均被跳过。空行和以 `#`/`;` 开头的注释行会被安全忽略，不影响段头解析。
 
 ### 10.2.1 `[General]` 段 — 键值对/环境变量
 
@@ -2901,7 +3013,7 @@ fi
 |---------|---------|----------|
 | 插件开关 | `togglePlugin(this)` | `/action` POST `{action: "start"/"stop"}` |
 | 重启按钮 | `restartCore()` | `/action` POST |
-| 覆写模块按钮 | `editOverwrite()` | 跳转到覆写设置页 |
+| 覆写模块按钮 | `editOverwrite()` | 在运行状态页弹出覆写编辑模态框 |
 | Compat/TUN/Mix 单选 | `switch_run_mode(val)` | `/switch_run_mode` POST |
 | Rule/Global/Direct 单选 | `switch_rule_mode(val)` | `/switch_rule_mode` POST |
 | Area Bypass 单选 | `switch_oc_setting_oversea(val)` | `/switch_oc_setting` POST `{setting: "oversea"}` |
