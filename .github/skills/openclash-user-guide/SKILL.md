@@ -31,8 +31,9 @@ disable-model-invocation: false
 | **给出 LuCI 操作路径** | 所有操作指导必须指向 LuCI Web 界面的具体操作路径（如「服务 → OpenClash → 插件设置 → 流量控制」），而非命令行。仅在用户明确要求命令行操作时才提供终端命令。 |
 | **解释原理，不只给步骤** | 说明配置选项背后的工作原理（如防火墙规则链、YAML 转换逻辑），帮助用户理解后再操作，降低误操作风险。 |
 | **先排查依赖** | 用户报告功能异常时，首先检查依赖包是否完整。本文档「完整依赖清单与故障排查」节提供了完整的依赖速查表。 |
-| **引用来源** | 当信息来自外部查询（Mihomo Wiki、源码等），在回复末尾注明来源，让用户知道信息的权威性。 |
+| **引用来源** | 当信息来自外部查询（Mihomo Wiki、源码、Issues 等），在回复末尾注明来源，让用户知道信息的权威性。 |
 | **先要日志，不盲猜** | 当用户问题描述不完整、缺少关键报错信息，或本文档无对应内容时，**不应猜测排查方向**。应首先要求用户提供调试日志，并给出日志生成指引：① **LuCI 页面操作**：「插件设置 → 调试日志」页面点击「生成日志」按钮；② **SSH 命令操作**：`/usr/share/openclash/openclash_debug.sh` 生成日志文件（输出路径`/tmp/openclash_debug.log`）。拿到日志后再对照本文档「日志与错误信息速查」节或者文档、源码进行诊断。 |
+| **查 Issues，不闭门造车** | 当用户遇到的功能问题在本文档中未覆盖，或报错信息在错误速查表中无匹配项时，**必须主动搜索 Issues** 查找是否存在相同或相似的问题：① 插件配置/订阅/防火墙/UI 相关问题 → 搜索 [OpenClash Issues](https://github.com/vernesong/OpenClash/issues)；② 内核级问题（代理协议/TUN/DNS 解析/规则引擎等 Mihomo 核心行为） → 搜索 [Mihomo Issues](https://github.com/MetaCubeX/mihomo/issues)。优先参考：**作者/维护者的回复**（OpenClash 标有 Owner 标签的 vernesong；Mihomo 标有 Contributor/Collaborator 标签的回复）——代表官方立场或已知 bug；**高赞反应（👍）的社区回复**——代表经过验证的有效方案；**同类问题中的诊断命令**（如 `nft list set`、`dig`、`uci show` 等）——可直接复用于用户的问题排查。搜索时使用用户报错中的关键错误信息或功能描述作为关键词。 |
 
 **核心资源速查**:
 
@@ -40,6 +41,8 @@ disable-model-invocation: false
 |------|-----|------|
 | Mihomo Wiki | `https://wiki.metacubex.one/config/` | Mihomo YAML 配置字段文档 |
 | Meta-Docs | `https://github.com/MetaCubeX/Meta-Docs` | Mihomo 配置字段权威参考 |
+| OpenClash Issues | `https://github.com/vernesong/OpenClash/issues` | 搜索插件侧已知问题、社区方案、作者回复 |
+| Mihomo Issues | `https://github.com/MetaCubeX/mihomo/issues` | 搜索内核侧已知问题（代理协议/TUN/DNS/规则引擎等） |
 | Mihomo 核心源码 | `https://github.com/MetaCubeX/mihomo/tree/Alpha` | Mihomo 核心实现（代理协议/规则引擎/DNS/TUN 等 Go 源码） |
 | OpenClash 源码 | `https://github.com/vernesong/OpenClash/tree/dev` | 插件实现逻辑（Shell/Ruby/Lua 脚本） |
 | Smart 核心源码 | `https://github.com/vernesong/mihomo/tree/Alpha` | Smart 策略、LightGBM 模型实现 |
@@ -879,6 +882,8 @@ fi
 | **直连网站/APP/小程序打不开** | 局域网客户端 | 小众域名未被 geosite:cn 收录，被误判为非直连走代理 | ① 临时方案：将「漏网之鱼」策略组设为直连；② 永久方案：在「覆写设置→规则→自定义规则」中为对应域名添加 `DOMAIN-SUFFIX,xxx.com,DIRECT` 规则；③ 观察 zashboard 中命中策略组确认分流是否正确 | — |
 | **开启 IPv6 后某些直连访问卡顿** | 局域网客户端 | IPv6 DNS 抢答或运营商 IPv6 DNS 不稳定导致解析异常 | ① 禁用「覆写设置→DNS」的「追加上游 DNS」，改为在 NameServer 中手动添加 DoH 服务器（如 AliDNS）；② 确保 LAN 口未下发 IPv6 DNS 地址 | — |
 | **非直连站点打不开且内核日志无记录** | 「运行状态」 | WAN 接口名称填写错误或 DNS 重定向未关闭 | ①「插件设置→流量控制」清空 WAN 接口名称；② 确认「网络→DHCP/DNS」中 DNS 重定向功能已关闭；③ 两者均正确时，检查 OpenWrt 中是否有其他劫持 53 端口或修改 Dnsmasq 的插件 | — |
+| **Hysteria / Hysteria2 / TUIC 节点连接失败、断流、握手超时** | 内核日志 `level=error` | ① Linux 内核 ≥6.6 的 quic-go GSO 兼容性问题（最常见）；② Hysteria 协议对 `server`/`auth`/`tls`/`password` 字段配置敏感 | ① **优先尝试**：「插件设置→模式设置」开启**「禁用 quic-go GSO (Disable QUIC Go GSO)」**后重启 OpenClash；② 确认 YAML 中 `type: hysteria` 或 `type: hysteria2` 拼写正确、端口号正确；③ 检查节点的 `auth`/`password` 及 TLS 证书配置是否完整 | — |
+| **开启「绕过中国大陆 IP」后 Google Play 商店无法下载/更新** | 客户端（Android 设备） | `services.googleapis.cn` 等 Google 域名被国内 DNS 解析到中国大陆 IP（`220.181.x.x`），被 `china_ip_route` 规则匹配后走直连；但 Google 中国服务器禁止境外 IP（代理节点）访问，导致死循环 | **从 DNS 和规则两方面同时入手**：<br><br>**① DNS 层面** — 在「覆写设置→DNS→自定义 DNS 设置」中配置 `nameserver-policy` 强制 Google 域名走境外 DNS 解析，写入 YAML 的 `dns.nameserver-policy` 段：<br>```yaml<br>dns:<br>  nameserver-policy:<br>    '+.services.googleapis.cn': 'https://dns.google/dns-query'<br>    '+.googleapis.cn': 'https://dns.google/dns-query'<br>    '+.xn--ngstr-lra8j.com': 'https://dns.google/dns-query'<br>```<br>也可用 `8.8.8.8` 或 `1.1.1.1` 替代 `https://dns.google/dns-query`。效果：域名解析到 Google 境外 IP（如 `142.250.x.x`），而非国内 `220.181.x.x`。<br><br>**② 规则层面** — 在「覆写设置→规则→自定义规则」中添加，写入 YAML 的 `rules` 段：<br>```yaml<br>rules:<br>  - DOMAIN-SUFFIX,services.googleapis.cn,Proxy<br>  - DOMAIN-SUFFIX,googleapis.cn,Proxy<br>  - DOMAIN-SUFFIX,xn--ngstr-lra8j.com,Proxy<br>```<br>其中 `Proxy` 替换为你的代理策略组名。更彻底的方式：`GEOSITE,google,Proxy` 将全部 Google 流量走代理。<br><br>**验证**：终端执行 `dig services.googleapis.cn @127.0.0.1 -p 7874` 应返回境外 IP；在 zashboard 连接日志中确认域名命中代理规则。 | [#5074](https://github.com/vernesong/OpenClash/issues/5074) |
 
 ### 十五、运行时状态异常
 
@@ -1170,12 +1175,19 @@ fi
 ### disable_quic_go_gso — 禁用 quic-go GSO (Disable QUIC Go GSO)
 - **UCI 选项**: `openclash.@openclash[0].disable_quic_go_gso`
 - **默认**: 0 (关闭)
-- **说明**: Linux 内核 6.6 以上版本遇到 QUIC UDP 问题时尝试开启
+- **说明**: Linux 内核 6.6 以上版本遇到 QUIC UDP 问题时尝试开启。**Hysteria / Hysteria2 / TUIC 等基于 QUIC 协议的节点出现连接超时、断流、握手失败时，优先尝试开启此选项**
+- **Mihomo 对应配置**: `disable-quic-go-gso` (全局 experimental 选项，写入 YAML 的 `experimental.disable-quic-go-gso: true`)
 
 ### small_flash_memory — 小闪存模式 (Small Flash Memory)
 - **UCI 选项**: `openclash.@openclash[0].small_flash_memory`
 - **默认**: 0 (关闭)
 - **说明**: 将核心和 GEOIP 数据文件移到 `/tmp/etc/openclash`，节省闪存空间。路由重启后需重新下载
+
+> **AI 行为指引 — QUIC 类节点（Hysteria / Hysteria2 / TUIC）故障排查**: 当用户报告 Hysteria、Hysteria2、TUIC 等基于 QUIC 协议的节点无法连接、频繁断流或握手超时时，AI 应**优先建议**用户在「插件设置→模式设置」中开启「禁用 quic-go GSO (Disable QUIC Go GSO)」选项并重启 OpenClash。这是 Linux 内核 ≥6.6 上最常见的 QUIC 兼容性问题。
+> 
+> **关于 `disable_udp_quic`（禁用 QUIC）**：此选项**不会**影响 Mihomo 内核自身的 Hysteria 出站连接，无需关闭。原因：非 TUN 模式下规则在 INPUT 链匹配 `dport 443`，内核出站返回包的 dport 为临时端口（非 443），不命中；TUN 模式下规则在 FORWARD 链限定 `oifname utun`，仅拦截经 TUN 转发的 LAN 客户端流量，内核自身连接走 OUTPUT 链，不经过 FORWARD。`disable_udp_quic` 的目的是让 LAN 客户端的 YouTube 等 QUIC 流量降级到 TCP 以便代理，与内核节点通信无关。
+> 
+> 若 GSO 选项开启后问题仍存在，建议查阅 [Mihomo Wiki Hysteria 配置](https://wiki.metacubex.one/config/proxies/hysteria/) 或 [Hysteria2 配置](https://wiki.metacubex.one/config/proxies/hysteria2/) 验证节点字段是否正确。
 
 ### 运行模式切换按钮 (switch_mode)
 - **模板**: `openclash/switch_mode`
@@ -1221,6 +1233,7 @@ fi
 > `init.d/openclash` 和 `yml_change.sh` 的相关逻辑。
 > `set_firewall()` 通过 UCI `firewall.openclash` 注册为 `/var/etc/openclash.include`，由 OpenWrt firewall3/firewall4 框架加载。
 > 支持 fw4 (nftables) 和 fw3 (iptables) 双后端自动检测。
+> **注意**：如需按接口/用户/DSCP 等维度精细绕过，请使用「插件设置页面底部 → 来源流量访问控制 (2.10)」。黑白名单设备级绕过使用「插件设置 → 黑白名单 (2.4)」。
 
 ### router_self_proxy — 路由本机代理 (Router-Self Proxy)
 - **UCI 选项**: `openclash.@openclash[0].router_self_proxy`
@@ -1285,8 +1298,9 @@ fi
 ### chnroute_pass — Chnroute 绕过列表 (Chnroute Pass)
 - **UCI 选项**: `openclash.@openclash[0].chnroute_pass`
 - **存储文件**: `/etc/openclash/custom/openclash_custom_chnroute_pass.list`
-- **说明**: 列表中的域名/IP 不受中国 IP 绕行选项影响，依赖 Dnsmasq
+- **说明**: 列表中的域名/IP 不受中国 IP 绕行选项影响，依赖 Dnsmasq。**默认已预置** `services.googleapis.cn`、`googleapis.cn`、`xn--ngstr-lra8j.com` 以解决 Google Play 下载问题
 - **依赖**: `enable_redirect_dns != 2`
+- **注意**: chnroute_pass 仅在 DNS 解析层面将域名解析 IP 加入 `china_ip_route_pass` nft set 使其跳过绕行规则，但若上游 DNS 本身将这些域名解析到国内 IP，加入 set 后仍会被 `china_ip_route` 规则误判为国内 IP 而绕行。**仅靠 chnroute_pass 不足以解决 Google Play 下载问题**——必须同时从 DNS 解析（`nameserver-policy` 强制走境外 DNS）和规则匹配（自定义规则走代理）两方面入手，详见错误速查表 §十四
 
 ---
 
@@ -1354,15 +1368,14 @@ fi
 > **生效路径**: 访问控制完全在防火墙层面实现，不修改 YAML。
 >
 > **AI 行为指引**: 当用户询问访问控制问题时（如"如何让某个设备不走代理"、"如何让内网某设备全局代理"、
-> "代理黑名单和白名单的区别"、"如何添加自定义代理接口"），AI 应结合本章节的防火墙规则详解
+> "代理黑名单和白名单的区别"），AI 应结合本章节的防火墙规则详解
 > （特别是「各选项对防火墙规则的具体影响」表格）告知用户各选项组合的效果。
 > 涉及黑白名单匹配逻辑时，查阅 [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
-> `init.d/openclash` 的 `set_firewall()` 和 `ipset`/`nft set` 创建逻辑。
+> `init.d/openclash` 的 `firewall_lan_ac_traffic()` 函数和 `set_firewall()` 中的 `ipset`/`nft set` 创建逻辑。
 > 对于 IP 段/CIDR 的写法问题，解释 `192.168.1.0/24` 等标准 CIDR 格式。
-> `set_firewall()` 在 redirect/TPROXY 链中插入条件 return 规则，匹配的设备/流量返回原始路由表（不走代理）。
+> **注意**：如需按接口/用户/DSCP 等维度精细绕过，请使用「插件设置页面底部 → 来源流量访问控制 (2.10)」。
 > **依赖**: `enable_redirect_dns=2`（防火墙重定向模式）仅在 **Fake-IP 模式**下强制要求——因为 Fake-IP 返回虚拟 IP，客户端不知道真实目标，
 > 必须通过防火墙重定向 DNS 才能实现基于真实目标的访问控制。Redir-Host 模式下此依赖为可选（LuCI UI 中同样要求，但底层机制不同）。
-> 所有模式均需非 TUN 模式（TUN 模式下流量不经 nftables redirect 链，无法做二层访问控制）。
 
 ### lan_ac_mode — 局域网访问控制模式 (LAN Access Control Mode)
 - **UCI 选项**: `openclash.@openclash[0].lan_ac_mode`
@@ -1399,24 +1412,6 @@ fi
 ### wan_ac_black_ports — 不走代理的 WAN 端口 (WAN Bypassed Port List)
 - **UCI 选项**: `openclash.@openclash[0].wan_ac_black_ports`
 - **格式**: 端口号或端口范围
-
-### LAN 流量访问列表 (lan_ac_traffic TypedSection)
-每条规则支持以下字段：
-
-| 字段 | UCI Key | 类型 | 说明 |
-|------|---------|------|------|
-| 备注 | `comment` | Value | 规则说明 |
-| 启用 | `enabled` | Flag | 默认 1 |
-| 内部地址 | `src_ip` | Value | IP/CIDR/"localnetwork" |
-| 内部端口 | `src_port` | Value | 端口或范围 |
-| 协议 | `proto` | ListValue | both/tcp/udp |
-| 地址族 | `family` | ListValue | both/ipv4/ipv6 |
-| 接口 | `interface` | ListValue | 网络接口名 |
-| 用户 | `user` | ListValue | Linux UID |
-| DSCP | `dscp` | Value | 0-63 |
-| 目标 | `target` | ListValue | RETURN/ACCEPT/DROP |
-
-> **效果**: 匹配的流量将不再经过核心。用于精细控制特定设备/端口/协议的代理行为
 
 ---
 
@@ -1636,6 +1631,76 @@ fi
 - `oix_email` / `oix_passwd` → `oix_login` 获取 token
 - `oix_checkin` — 自动签到 (需 token)
 - 登录后自动获取 Oix 专属核心和订阅
+
+---
+
+## 2.10 来源流量访问控制 (Source Traffic Bypass / lan_ac_traffic)
+
+> **页面位置**：插件设置页面底部（不属于任何标签页，以独立的 TypedSection 形式存在）
+> **生效路径**：通过 `init.d/openclash` 的 `firewall_lan_ac_traffic()` 函数在代理链 **position 0** 插入规则，
+> 优先级高于所有其他代理规则。配置通过 `config_foreach firewall_lan_ac_traffic "lan_ac_traffic"` 遍历执行。
+>
+> **AI 行为指引**：当用户询问「如何让某个接口（如 WireGuard/Docker 网桥）的流量完全绕过内核」、
+> 「如何按用户 UID 绕过代理」、「如何精细控制特定来源流量」时，AI 应告知用户使用此功能，
+> 并结合下方字段表和防火墙逻辑给出具体配置方案。涉及底层实现时查阅
+> [OpenClash 源码](https://github.com/vernesong/OpenClash/tree/dev) 中
+> `init.d/openclash` 的 `firewall_lan_ac_traffic()` 函数。
+
+### lan_ac_traffic TypedSection
+
+支持按七维度组合匹配流量，匹配后执行 target 动作：
+
+| 字段 | UCI Key | 类型 | 说明 |
+|------|---------|------|------|
+| 备注 | `comment` | Value | 规则说明 |
+| 启用 | `enabled` | Flag | 默认 1 |
+| 内部地址 | `src_ip` | Value | IP/CIDR/`localnetwork`（匹配本地网络地址集 @localnetwork） |
+| 内部端口 | `src_port` | Value | 端口或范围，如 `5000` 或 `1234-2345` |
+| 协议 | `proto` | ListValue | `both`(默认)/`tcp`/`udp` |
+| 地址族 | `family` | ListValue | `both`(默认)/`ipv4`/`ipv6` |
+| 接口 | `interface` | ListValue | 网络接口名（如 `eth1`、`wg0`、`docker0`），匹配从该接口进入的流量 |
+| 用户 | `user` | ListValue | Linux UID，匹配该用户进程发出的流量（仅 OUTPUT 链生效） |
+| DSCP | `dscp` | Value | 0-63，匹配 IP 头 DSCP 标记值 |
+| 目标 | `target` | ListValue | `RETURN`(默认，跳过代理走直连) / `ACCEPT`(放行) / `DROP`(静默丢弃) |
+
+### 防火墙工作逻辑（基于 `init.d/openclash` → `firewall_lan_ac_traffic()` 源码）
+
+**规则生成流程**：
+
+```
+config_foreach firewall_lan_ac_traffic "lan_ac_traffic"
+  → 读取每个启用的 section 的 UCI 字段
+  → 构建 nftables/iptables 匹配条件
+  → 按运行模式 + 协议 + 地址族插入对应链的 position 0
+```
+
+**fw4 (nftables) 规则插入的目标链**（按运行模式区分）：
+
+| 运行模式 | TCP 进入 | TCP 发出 | UDP 进入 | UDP 发出 | 旁路由 SNAT |
+|----------|----------|----------|----------|----------|-------------|
+| 非 TUN（redir-host/fake-ip） | `openclash` | `openclash_output` | `openclash_mangle` | `openclash_mangle_output` | `openclash_post` |
+| TUN 模式 | `openclash_mangle` | `openclash_mangle_output` | `openclash_mangle` | `openclash_mangle_output` | `openclash_post` |
+| IPv6（ipv6_enable=1） | `openclash_v6` | `openclash_output_v6` | `openclash_mangle_v6` | `openclash_mangle_output_v6` | `openclash_post_v6` |
+
+**关键匹配逻辑**：
+
+- **`src_ip=localnetwork`**：特殊值，nftables 端展开为 `ip saddr @localnetwork`（匹配整个本地网络地址集），iptables 端使用 `-m set --match-set localnetwork src`
+- **接口匹配**：nftables 用 `iifname "接口名"`，iptables 用 `-i 接口名`
+- **用户匹配**：nftables 用 `meta skuid UID`（仅 OUTPUT 链生效），iptables 用 `-m owner --uid-owner UID`
+- **DSCP 匹配**：nftables 用 `ip dscp 值`，iptables 需 `dscp` 模块（不可用时跳过并输出警告：`iptables DSCP module not available`）
+- **Fake-IP 排除**：所有规则自动排除 Fake-IP 地址段 `ip daddr != {198.18.0.0/16}`，避免影响 Fake-IP 内部映射
+- **drop→return 转换**：当 `target=DROP` 时，nftables 实际动作为 `return`（因 mangle 链不支持 drop），iptables 保持 `DROP`
+
+**常见场景示例**：
+
+| 需求 | 规则配置 |
+|------|----------|
+| 某接口（如 WireGuard）流量不走代理 | `interface=wg0`, `target=RETURN` |
+| Docker 网桥流量绕过内核 | `interface=docker0`, `target=RETURN` |
+| 某设备所有流量不走代理 | `src_ip=192.168.1.100/32`, `target=RETURN` |
+| 某端口范围的 TCP 流量不走代理（BT 端口） | `src_port=6881-6889`, `proto=tcp`, `target=RETURN` |
+| 某用户进程流量完全丢弃 | `user=65534`, `target=DROP` |
+| 本地网络所有 UDP 流量直连 | `src_ip=localnetwork`, `proto=udp`, `target=RETURN` |
 
 ---
 
@@ -2303,6 +2368,7 @@ dns:
 |----------|-------------------|------|
 | 所有设备都能翻墙 | `en_mode`=redir-host/fake-ip (默认已配好) | 插件设置→模式设置 |
 | 某台设备不走代理 | `lan_ac_mode`=0 (黑名单模式 (Black List Mode)) + `lan_ac_black_ips` (不走代理的局域网设备 IP) 添加该设备IP | 插件设置→黑白名单 |
+| 某个接口流量绕过内核 | 插件设置页面底部「来源流量访问控制」添加规则：`interface=接口名`, `target=RETURN` | 插件设置 |
 | 仅某台设备走代理 | `lan_ac_mode`=1 (白名单模式 (White List Mode)) + `lan_ac_white_ips` (走代理的局域网设备 IP) 添加该设备IP | 插件设置→黑白名单 |
 | 禁止 BT 下载走代理 | `common_ports` (仅允许常用端口流量) 设为预设常用端口 | 插件设置→流量控制 |
 | 国内网站直连加速 | `china_ip_route`=1 (绕过中国大陆 (Bypass Mainland China)) | 插件设置→流量控制 |
@@ -3073,9 +3139,11 @@ fi
 |--------|------|----------|----------|
 | 1 | **Mihomo Wiki** `https://wiki.metacubex.one/config/` | 使用 `fetch_webpage` 抓取相关页面 | Mihomo YAML 配置字段的含义、可选值、用法 |
 | 2 | **Meta-Docs 仓库** `github.com/MetaCubeX/Meta-Docs` | 使用 `github_text_search` 搜索 `docs/config/` 目录 | 需要精确的字段类型、默认值、完整配置示例 |
-| 3 | **OpenClash 源码** `github.com/vernesong/OpenClash/tree/dev` | 使用 `github_text_search` 搜索对应脚本/函数 | 需要了解插件侧的实现逻辑、UCI 到 YAML 的转换细节 |
-| 4 | **Mihomo 核心源码** `github.com/MetaCubeX/mihomo/tree/Alpha` | 使用 `github_text_search` 搜索核心代码 | 代理协议实现、规则引擎、DNS 解析、TUN 栈等核心底层逻辑 |
-| 5 | **Smart 核心源码** `github.com/vernesong/mihomo/tree/Alpha` | 使用 `github_text_search` 搜索核心代码 | Smart 策略、LightGBM 模型的底层实现 |
+| 3 | **OpenClash Issues** `https://github.com/vernesong/OpenClash/issues` | 使用 `fetch_webpage` 打开 Issue 搜索页面或具体 Issue 页面 | 插件侧功能异常/报错（配置/订阅/防火墙/UI等），搜索已知问题和社区方案（优先作者 vernesong 回复和高赞回答） |
+| 4 | **Mihomo Issues** `https://github.com/MetaCubeX/mihomo/issues` | 使用 `fetch_webpage` 打开 Issue 搜索页面或具体 Issue 页面 | 内核侧功能异常/报错（代理协议/TUN/DNS解析/规则引擎等），搜索已知问题和社区方案 |
+| 5 | **OpenClash 源码** `github.com/vernesong/OpenClash/tree/dev` | 使用 `github_text_search` 搜索对应脚本/函数 | 需要了解插件侧的实现逻辑、UCI 到 YAML 的转换细节 |
+| 6 | **Mihomo 核心源码** `github.com/MetaCubeX/mihomo/tree/Alpha` | 使用 `github_text_search` 搜索核心代码 | 代理协议实现、规则引擎、DNS 解析、TUN 栈等核心底层逻辑 |
+| 7 | **Smart 核心源码** `github.com/vernesong/mihomo/tree/Alpha` | 使用 `github_text_search` 搜索核心代码 | Smart 策略、LightGBM 模型的底层实现 |
 
 **具体触发条件**（满足任一即主动查询）：
 - 用户询问的配置字段在本文档任何章节中均未出现
@@ -3089,6 +3157,7 @@ fi
 **AI 工作流程**：
 1. 确认问题超出本文档覆盖范围
 2. 根据问题类型选择对应的外部资源
-3. **主动查询**：使用 `fetch_webpage` 抓取 Mihomo Wiki 页面，或使用 `github_text_search` 搜索 Meta-Docs/OpenClash/Mihomo 核心/Smart 核心源码
-4. 将查询到的信息**翻译、整理**后告知用户，而非直接丢链接
-5. 在回复末尾注明信息来源（如「以上信息来自 Mihomo Wiki / Meta-Docs」），让用户知道信息的权威来源
+3. **优先搜索 Issues**：如果用户遇到的是功能异常/报错类问题（而非配置字段查询），应先搜索 Issues 查找类似问题。根据问题类型选择：插件侧（配置/订阅/防火墙/UI）→ [OpenClash Issues](https://github.com/vernesong/OpenClash/issues)；内核侧（代理协议/TUN/DNS/规则引擎）→ [Mihomo Issues](https://github.com/MetaCubeX/mihomo/issues)。读取 Issue 时重点关注：① 维护者的诊断命令和结论；② 👍 反应数高的社区回复；③ Issue 最终是否被关闭及关闭原因（`completed`=已修复，`not planned`=不在计划内）
+4. **主动查询**：使用 `fetch_webpage` 抓取 Mihomo Wiki 页面，或使用 `github_text_search` 搜索 Meta-Docs/OpenClash/Mihomo 核心/Smart 核心源码
+5. 将查询到的信息**翻译、整理**后告知用户，而非直接丢链接
+6. 在回复末尾注明信息来源（如「以上信息来自 OpenClash Issues #xxx / Mihomo Wiki」），让用户知道信息的权威来源
