@@ -458,7 +458,7 @@ end
 function decode64(data)
 	if not data then return nil end
 	data = data:gsub('[%s]', '')
-	if #data % 4 ~= 0 then return data end
+	if #data % 4 ~= 0 then return nil end
 
 	local out = {}
 	for i = 1, #data, 4 do
