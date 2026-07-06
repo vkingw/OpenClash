@@ -78,7 +78,8 @@ popd
 
 # 编译最新 CodeMirror 6 (插件内置，可跳过)
 pushd luci-app-openclash/tools/codemirror
-npx --yes esbuild entry.js --bundle --format=iife --global-name=CM6 --minify --target=es2019 --outfile=../../root/www/luci-static/resources/openclash/js/cm6.min.js --legal-comments=none
+npm install
+npx esbuild entry.js --bundle --format=iife --global-name=CM6 --minify --target=es2019 --outfile=../../root/www/luci-static/resources/openclash/js/cm6.min.js --legal-comments=none
 rm -rf node_modules
 popd
 
