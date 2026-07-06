@@ -606,7 +606,7 @@ iptables -t mangle -A PREROUTING -p udp -j openclash
 | | `2` (绕过海外) | 插入 `ip daddr != @china_ip_route counter return` — 目标非国内 IP 的流量跳过代理 |
 | **`china_ip6_route`** (实验性：绕过指定区域 IPv6 / China IPv6 Route) | `1` (绕过大陆) | IPv6 等效规则：`ip6 daddr @china_ip6_route counter return` — 目标为国内 IPv6 的流量跳过代理 |
 | | `2` (绕过海外) | IPv6 等效规则：`ip6 daddr != @china_ip6_route counter return` |
-| **`disable_udp_quic`** (禁用 QUIC / Disable QUIC) | `1` | 非 TUN: `nft insert rule inet fw4 input position 0 udp dport 443 ip daddr != @china_ip_route counter reject` — 阻断入站 QUIC；TUN: `nft insert rule inet fw4 forward position 0 oifname utun udp dport 443 ... counter reject` — 阻断 TUN 出方向 QUIC |
+| **`disable_udp_quic`** (禁用 QUIC / Disable QUIC) | `1` | 全部模式在 filter INPUT 链插入 QUIC REJECT 规则 (`udp dport 443`，根据 `china_ip_route` 匹配或排除中国 IP)，同时拦截下游客户端和路由器自身的 QUIC。IPv6 TUN 模式额外在 `forward oifname utun` 插入同规则以覆盖经 utun 转发的 IPv6 流量。规则触发仅依赖 `disable_udp_quic`，与 `enable_udp_proxy`/`enable_v6_udp_proxy` 无关。Mihomo 内核自身 QUIC（如 Hysteria 节点、DNS h3）不受影响——内核出站走 OUTPUT 链，不在规则范围内。 |
 | **`lan_ac_mode`** (局域网访问控制模式 / LAN Access Control Mode) | `0` (黑名单) | 创建 `lan_ac_black_ips`/`lan_ac_black_macs` set，匹配到的 RETURN 跳过代理 |
 | | `1` (白名单) | 创建 `lan_ac_white_ips`/`lan_ac_white_macs` set，**不匹配**的 RETURN 跳过代理（反逻辑） |
 | **`common_ports`** (仅允许常用端口流量 / Common Ports Proxy Mode) | `非0` | 插入 `th dport != @common_ports counter return` — 仅代理指定端口，P2P/BT 端口被绕过。仅 redir-host 模式生效 |
@@ -1191,7 +1191,7 @@ fi
 
 > **AI 行为指引 — QUIC 类节点（Hysteria / Hysteria2 / TUIC）故障排查**: 当用户报告 Hysteria、Hysteria2、TUIC 等基于 QUIC 协议的节点无法连接、频繁断流或握手超时时，AI 应**优先建议**用户在「插件设置→模式设置」中开启「禁用 quic-go GSO (Disable QUIC Go GSO)」选项并重启 OpenClash。这是 Linux 内核 ≥6.6 上最常见的 QUIC 兼容性问题。
 > 
-> **关于 `disable_udp_quic`（禁用 QUIC）**：此选项**不会**影响 Mihomo 内核自身的 Hysteria 出站连接，无需关闭。原因：非 TUN 模式下规则在 INPUT 链匹配 `dport 443`，内核出站返回包的 dport 为临时端口（非 443），不命中；TUN 模式下规则在 FORWARD 链限定 `oifname utun`，仅拦截经 TUN 转发的 LAN 客户端流量，内核自身连接走 OUTPUT 链，不经过 FORWARD。`disable_udp_quic` 的目的是让 LAN 客户端的 YouTube 等 QUIC 流量降级到 TCP 以便代理，与内核节点通信无关。
+> **关于 `disable_udp_quic`（禁用 QUIC）**：此选项**不会**影响 Mihomo 内核自身的 Hysteria/Hysteria2/TUIC 等 QUIC 出站连接，无需因使用此类节点而关闭该选项。原因：所有模式（TUN/非TUN）下 QUIC REJECT 规则均在 filter INPUT 链 + IPv6 TUN 模式下额外在 FORWARD -o utun 链，Mihomo 内核自身出站 QUIC 走 OUTPUT 链，回复包的目标端口为临时端口（非 443），均不命中拦截规则。`disable_udp_quic` 的目的是让 LAN 客户端的 YouTube 等 QUIC 流量降级到 TCP 以便代理，与内核节点通信无关。
 > 
 > 若 GSO 选项开启后问题仍存在，建议查阅 [Mihomo Wiki Hysteria 配置](https://wiki.metacubex.one/config/proxies/hysteria/) 或 [Hysteria2 配置](https://wiki.metacubex.one/config/proxies/hysteria2/) 验证节点字段是否正确。
 
