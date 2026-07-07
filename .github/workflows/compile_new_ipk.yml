@@ -150,7 +150,7 @@ jobs:
           # Install dependencies
           npm install
           # Build JS
-          npx esbuild entry.js --bundle --format=iife --global-name=CM6 --minify --target=es2019 --outfile=../../root/www/luci-static/resources/openclash/js/cm6.min.js --legal-comments=none
+          npx esbuild entry.js --bundle --format=iife --global-name=CM6 --minify --target=es2019 --outfile=../../root/www/luci-static/resources/openclash/js/cm6.min.js --legal-comments=none --loader:.css=text
           # Minify CSS
           CSS_PATH="../../root/www/luci-static/resources/openclash/css/oc.css"
           SIZE_BEFORE=$(wc -c < "$CSS_PATH")
